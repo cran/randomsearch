@@ -1,0 +1,17 @@
+34b3aecbcb92a71dc36b2e50f0eadf60 *DESCRIPTION
+47db9b5bd23721539e2f2e4fc03469b1 *LICENSE
+e6e4885f92f055581615ecbc2b1cc7d1 *NAMESPACE
+3b9862425980ce11a1ad384063e6d2c2 *R/RandomsearchResult.R
+093b72035ec0dd69e2f074c70b579043 *R/helpers.R
+477aa01a13f6532f467e0e77ec77fc45 *R/randomsearch.R
+6eabce5e9d36210ac7d21eb54540173a *R/zzz.R
+88f8d8af99e50b0ef40b39dbc5fdec01 *build/vignette.rds
+f9f603734d65d79d93ad3e991767d44d *inst/doc/randomsearch.R
+1d67a5b71684e9411e5e679a65c222f0 *inst/doc/randomsearch.Rmd
+54023ae978e4e13f9cae96e467959e4c *inst/doc/randomsearch.html
+081dcf831fef102a88df03404ee17d69 *man/randomsearch.Rd
+90fe3ae5cdcfeaac32d5c5f9033a0c2e *man/summary.RandomsearchResult.Rd
+b7862a8759414c2175c005583385dbce *tests/testthat.R
+87a2dfcffafd8b2e9ffb5dcd7ce529a1 *tests/testthat/helper_objects.R
+2663828aeb3ebc88f77562c9c859a1a9 *tests/testthat/test_randomsearch.R
+1d67a5b71684e9411e5e679a65c222f0 *vignettes/randomsearch.Rmd
