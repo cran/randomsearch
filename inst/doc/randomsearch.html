@@ -3,7 +3,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 
-<title>Usage</title>
+<title>randomsearch</title>
 
 <script type="text/javascript">
 window.onload = function() {
@@ -201,6 +201,8 @@ hr {
 </head>
 
 <body>
+<h1>randomsearch</h1>
+
 <p>The package <strong>randomsearch</strong> optimizes a given <a href="https://cran.r-project.org/package=smoof">smoof function</a>.
 Use <code>makeSingleObjectiveFunction()</code> to wrap any function into a smoof function.
 It can make use of parallel resources through <a href="https://cran.r-project.org/package=parallelMap">prallelMap</a>.
@@ -210,19 +212,17 @@ It can make use of parallel resources through <a href="https://cran.r-project.or
 <li><em>fast.parallel</em> is the default and used if only <code>max.evals</code> is defined as termination criterion. <code>max.execbudget</code> and <code>target.fun.value</code> have to be <code>NULL</code>.</li>
 <li><em>slow.parallel</em> is used if <code>max.execbudget</code> or <code>target.fun.value</code> have been set and <code>parallelStart</code> has been called without defined <code>level</code> or with <code>level = randomsearch.feval</code>.
 In this mode <code>par.jobs</code> (defaults to <code>parallelGetOptions()$settings$cpus</code>) instances are started.
-Each instance conducts a randomsearch until the termination criterion is met.
+Each instance conducts a random search until the termination criterion is met.
 The instances communicate using a shared folder (<code>par.dir = ~/.randomsearch/</code>).</li>
 <li><em>normal</em> is used if no parallel mode is started and if <code>max.execbudget</code> or <code>target.fun.value</code> have been set. Note, that this introduces an overhead to <em>fast.parallel</em> even without parallelization because the termination criterion is checked after each evaluation.</li>
 </ul>
 
 <h2>Usage</h2>
 
-<pre><code class="r">obj.fun = makeSingleObjectiveFunction(
-  fn = function(x) x[1]^2 + sin(x[2]),
-  par.set = makeNumericParamSet(len = 2, lower = -1, upper = 2),
-  minimize = TRUE
-)
-res = randomsearch(obj.fun, max.evals = 30)
+<p>Simple usage with functions that use a vector as input:</p>
+
+<pre><code class="r">fun = function(x) x[1]^2 + sin(x[2])
+res = randomsearch(fun, lower = c(-1, -1), upper = c(2,2), minimize = TRUE, max.evals = 30)
 rs = summary(res)
 rs$best.x
 </code></pre>
@@ -250,47 +250,139 @@ rs$best.x
 ## 30  1.6851361  0.1233883 2.96275907  30  NA         0
 </code></pre>
 
-<h2>Parallel Usage</h2>
+<h3>Discrete and hierarchical search spaces</h3>
+
+<p>For usage with more complicated search spaces you have to define a smoof function.
+This allows you to tune over discrete parameters and even hierarchical parameter sets like in this example.
+Here the parameter <code>y</code> is only active if <code>a==a2</code>.</p>
+
+<pre><code class="r">fun = function(x) {
+  if (x$a == &quot;a1&quot;) {
+    x$x^2
+  } else if (x$a == &quot;a2&quot;) {
+    sin(x$x * x$z) + 1
+  }
+}
+obj.fun = makeSingleObjectiveFunction(
+  fn = fun,
+  par.set = makeParamSet(
+    makeDiscreteParam(&quot;a&quot;, values = c(&quot;a1&quot;, &quot;a2&quot;)),
+    makeNumericParam(&quot;x&quot;, lower = -3, upper = 3),
+    makeNumericParam(&quot;z&quot;, lower = 0, upper = 2, requires = quote(a == &quot;a2&quot;))
+  ),
+  minimize = TRUE,
+  has.simple.signature = FALSE
+)
+res = randomsearch(obj.fun, max.evals = 30)
+rs = summary(res)
+rs$best.x
+</code></pre>
+
+<pre><code>## $a
+## [1] &quot;a2&quot;
+## 
+## $x
+## [1] -2.430956
+## 
+## $z
+## [1] 0.7679393
+</code></pre>
+
+<pre><code class="r">rs$best.y
+</code></pre>
+
+<pre><code>##          y 
+## 0.04349791
+</code></pre>
+
+<pre><code class="r">tail(as.data.frame(res))
+</code></pre>
+
+<pre><code>##     a          x         z         y dob eol exec.time
+## 25 a2  1.4224664 1.0422715 1.9961129  25  NA         0
+## 26 a2  1.9308328 1.5725631 1.1050422  26  NA         0
+## 27 a2 -0.3634108 0.6234044 0.7753811  27  NA         0
+## 28 a1 -2.9371973        NA 8.6271281  28  NA         0
+## 29 a2 -1.6130293 0.4781999 0.3028959  29  NA         0
+## 30 a1 -1.5256579        NA 2.3276321  30  NA         0
+</code></pre>
+
+<h3>Parallel Usage</h3>
 
 <p><em>Note:</em> For Windows use <code>parallelStartSocket()</code>.</p>
 
-<pre><code class="r">obj.fun = makeSingleObjectiveFunction(
-  fn = function(x) {
-    Sys.sleep(runif(1))
-    x[1]^2 + sin(x[2])
-  },
-  par.set = makeNumericParamSet(len = 2, lower = -1, upper = 2),
-  minimize = TRUE
-)
+<pre><code class="r">fun = function(x) {
+  Sys.sleep(runif(1))
+  x[1]^2 + sin(x[2])
+}
+
 parallelMap::parallelStartMulticore(cpus = 2, level = &quot;randomsearch.feval&quot;)
-res = randomsearch(obj.fun, max.execbudget = 2, max.evals = 1000)
+res = randomsearch(fun, lower = c(-1, -1), upper = c(2,2), minimize = TRUE, max.execbudget = 2, max.evals = 1000)
+parallelMap::parallelStop()
 summary(res)
 </code></pre>
 
 <h2>Multi-objective optimization</h2>
+
+<p><em>Note:</em> <code>randomsearch()</code> detects a multi-objective optimization by the length of the <code>minimize</code> vector.</p>
+
+<pre><code class="r">obj.fun = function(x) c(x[1]^2 + sin(x[2]), cos(x[1]))
+res = randomsearch(obj.fun, lower = c(-1, -1), upper = c(2,2), minimize = c(TRUE, TRUE), max.evals = 30)
+summary(res)
+</code></pre>
+
+<pre><code>## Randomsearch Result: 
+## Multiobjective Search Pareto Front 
+##           y_1         y_2         x1          x2
+## 1  -0.2266606  0.88324220 -0.4880643 -0.48348476
+## 3  -0.2274047  0.94463890  0.3343040 -0.34602799
+## 4  -0.2309050  0.98662663  0.1637271 -0.26065302
+## 6   0.1701176  0.75456461  0.7158059 -0.34932171
+## 8   0.3583286  0.62947484  0.8899192 -0.44851453
+## 10  1.0262387  0.58171931  0.9499555  0.12414187
+## 14  1.0618198  0.43129294  1.1248710 -0.20494658
+## 15  1.1604827  0.34270358  1.2210031 -0.33669119
+## 16  2.2456680  0.05147028  1.5193033 -0.06265551
+## 21  3.3156845 -0.05322554  1.6240470  0.74525030
+## 22  3.6721829 -0.23881557  1.8119423  0.39959811
+## 29  4.5873757 -0.37660278  1.9569227  0.85997993
+</code></pre>
+
+<p>Of course multi-objective optimization works with smoof functions as well.
+A multi-objective smoof function is constructed as follows:</p>
 
 <pre><code class="r">obj.fun = makeMultiObjectiveFunction(
   fn = function(x) c(x[1]^2 + sin(x[2]), cos(x[1])),
   par.set = makeNumericParamSet(len = 2, lower = -1, upper = 2),
   minimize = c(TRUE, TRUE)
 )
-res = randomsearch(obj.fun, max.evals = 30)
+res = randomsearch(obj.fun, max.evals = 10)
+</code></pre>
+
+<h2>Augment random search</h2>
+
+<p>You can simply augment the results of a random search with additional random search results by converting the old result to a <code>data.frame</code> and use it as an input for a new random search.</p>
+
+<pre><code class="r">fun = function(x) x[1]^2 + sin(x[2])
+res = randomsearch(fun, lower = c(-1, -1), upper = c(2,2), minimize = TRUE, max.evals = 10)
 summary(res)
 </code></pre>
 
 <pre><code>## Randomsearch Result: 
-## Multiobjective Search Pareto Front 
-##           y_1         y_2         x1         x2
-## 4  -0.1517177  0.91064673 0.42594972 -0.3396433
-## 6  -0.4762416  0.97319255 0.23206933 -0.5587159
-## 7  -0.6152440  0.99846616 0.05539373 -0.6665937
-## 9   0.4376802  0.42616485 1.13054720 -0.9981257
-## 13  0.8074995  0.39769890 1.16178882 -0.5731171
-## 14  1.1552992  0.22204704 1.34688290 -0.7192150
-## 18  2.2268508  0.18666793 1.38302696  0.3194951
-## 24  2.2964342 -0.08849494 1.65940718 -0.4748420
-## 25  3.1651082 -0.23294323 1.80589941 -0.0963133
-## 27  4.8156555 -0.37470133 1.95487094  1.6791533
+## Eval no.: 9
+## x: x=-0.228,-0.335
+## y: -0.276282
+</code></pre>
+
+<pre><code class="r">des = as.data.frame(res)
+res = randomsearch(fun, lower = c(-1, -1), upper = c(2,2), minimize = TRUE, max.evals = 1000, target.fun.value = -0.4)
+summary(res)
+</code></pre>
+
+<pre><code>## Randomsearch Result: 
+## Eval no.: 243
+## x: x=-0.0328,-0.996
+## y: -0.8384554
 </code></pre>
 
 </body>
